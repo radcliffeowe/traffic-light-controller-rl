@@ -8,6 +8,8 @@ def test_agent(agent, env, num_episodes=5, seed=42):
         terminated=False
         state = env.reset()
         while not terminated and not truncated:
+            if isinstance(state, tuple):
+                state = state[0]  # first observation sometimes includes info dict
             action = agent.make_action(state, test=True)
             state, reward, terminated, truncated, info = env.step(action)
     env.close()
