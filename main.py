@@ -1,6 +1,7 @@
 import argparse
 
 from test_agent import test_agent
+from observations import LaneQueueObservationFunction
 
 import gymnasium as gym
 import sumo_rl
@@ -27,13 +28,19 @@ def run(args):
                 route_file=args.route_file,
                 out_csv_name=args.output_path,
                 single_agent=True,
-                use_gui=False,
-                num_seconds=100)
+                use_gui=True,
+                num_seconds=100,
+                observation_class=LaneQueueObservationFunction,
+                reward_fn="queue"
+                )
 
         try:
             if args.agent_name == "random":
                 from agents.random_agent import RandomAgent
                 agent = RandomAgent(env)
+            elif args.agent_name == "greedy":
+                from agents.greedy_agent import GreedyAgent
+                agent = GreedyAgent(env)
             else:
                 print("Agent not found, exiting...")
                 raise Exception("Agent not found")
