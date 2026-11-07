@@ -13,6 +13,7 @@ def parse():
     parser.add_argument('--net_file')
     parser.add_argument('--route_file')
     parser.add_argument('--output_path', default=None)
+    parser.add_argument('--use_gui', action='store_true')
     try:
         from argument import add_arguments
         parser = add_arguments(parser)
@@ -23,14 +24,13 @@ def parse():
 
 def run(args):
     if args.test_agent:
-        env = gym.make('sumo-rl-v0',
+        env = sumo_rl.SumoEnvironment(
                 net_file=args.net_file,
                 route_file=args.route_file,
                 out_csv_name=args.output_path,
                 single_agent=True,
-                use_gui=True,
-                num_seconds=100,
-                observation_class=LaneQueueObservationFunction,
+                use_gui=args.use_gui,
+                num_seconds=1000,
                 reward_fn="queue"
                 )
 
