@@ -1,7 +1,6 @@
 import argparse
 
 from test_agent import test_agent
-from observations import LaneQueueObservationFunction
 
 import gymnasium as gym
 import sumo_rl
