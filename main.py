@@ -1,7 +1,6 @@
 import argparse
 
 from test_agent import test_agent
-from observations import LaneQueueObservationFunction
 
 import gymnasium as gym
 import sumo_rl
@@ -48,7 +47,7 @@ def run(args):
             print(f"Error importing {args.agent_name}: {e}")
             raise e
 
-        test_agent(agent, env)        
+        test_agent(agent, env, output_path=args.output_path)        
 
 if __name__ == "__main__":
     args = parse()
