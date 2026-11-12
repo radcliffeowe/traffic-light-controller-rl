@@ -1,10 +1,12 @@
 from tqdm import tqdm
 from random import randint
+import numpy as np
 
 from agents.ppo.policy_network import PPOPolicyNetwork
 from agents.ppo.value_network import PPOValueNetwork
 
-from torch import device, cuda, no_grad, from_numpy, argmax
+from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, stack, float32, long, bool
+from torch.optim import Adam
 from torch.distributions import Categorical
 
 
@@ -13,14 +15,19 @@ class PPOAgent:
         self.env = env
         self.device = device("cuda:0" if cuda.is_available() else "cpu")
 
-        self.num_episodes = 10
+        self.num_episodes = 5
         self.trajectory_length = 8
         self.trajectory_buffer = []
 
         self.checkpoint_interval = 100
 
+        self.lr = 1e-4
+
         self.policy_network = PPOPolicyNetwork()
         self.value_network = PPOValueNetwork()
+
+        self.policy_network_optim = Adam(params=self.policy_network.parameters(), lr=self.lr)
+        self.value_network_optim = Adam(params=self.value_network.parameters(), lr=self.lr)
 
 
     def make_action(self, observation, test=True):
@@ -49,7 +56,20 @@ class PPOAgent:
                 return action, log_probability
 
     def update(self):
-        pass
+        state, action, reward, next_state, action_log_prob, episode_done, terminated = self.format_trajectory_buffer()
+
+    def format_trajectory_buffer(self):
+        state, action, reward, next_state, action_log_prob, episode_done, terminated = zip(*self.trajectory_buffer)
+            
+        state = as_tensor(np.stack(state), dtype=float32).to(self.device)
+        action = as_tensor(action, dtype=long).to(self.device).unsqueeze(1)
+        reward = as_tensor(reward, dtype=float32).to(self.device).unsqueeze(1)
+        next_state = as_tensor(np.stack(next_state), dtype=float32).to(self.device)
+        action_log_prob = as_tensor(action_log_prob, dtype=float32).to(self.device).unsqueeze(1)
+        episode_done = as_tensor(episode_done, dtype=bool).to(self.device).unsqueeze(1)
+        terminated = as_tensor(terminated, dtype=bool).to(self.device).unsqueeze(1)
+
+        return state, action, reward, next_state, action_log_prob, episode_done, terminated
 
     def store_transition(self, state, action, reward, next_state, action_log_prob, episode_done, terminated):
         self.trajectory_buffer.append([state, action, reward, next_state, action_log_prob, episode_done, terminated])
@@ -60,6 +80,7 @@ class PPOAgent:
     def train(self):
         num_steps = 0
         for i in tqdm(range(self.num_episodes)):
+            self.trajectory_buffer.clear()
             current_trajectory_length = 0
             state, info = self.env.reset(randint(0, self.num_episodes*2))
             not_done = True
@@ -69,7 +90,7 @@ class PPOAgent:
                 if terminated or truncated:
                     not_done = False
 
-                self.store_transition()
+                self.store_transition(state, action, reward, next_state, action_log_prob, not not_done, terminated)
                 state = next_state
 
                 current_trajectory_length += 1
