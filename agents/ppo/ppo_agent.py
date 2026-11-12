@@ -5,7 +5,7 @@ import numpy as np
 from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
 
-from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, stack, float32, long, bool, randperm
+from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adam
 from torch.distributions import Categorical
@@ -31,8 +31,8 @@ class PPOAgent:
         self.clip_epsilon = 0.2
         self.entropy_coeff = 0.01
 
-        self.policy_network = PPOPolicyNetwork()
-        self.value_network = PPOValueNetwork()
+        self.policy_network = PPOPolicyNetwork().to(self.device)
+        self.value_network = PPOValueNetwork().to(self.device)
 
         self.policy_actor = get_policy_actor(self.policy_network)
         self.value_critic = get_value_critic(self.value_network)
@@ -61,7 +61,7 @@ class PPOAgent:
         - ```lane_i_density``` is the number of vehicles in incoming lane i dividided by the total capacity of the lane
         - ```lane_i_queue``` is the number of queued (speed below 0.1 m/s) vehicles in incoming lane i divided by the total capacity of the lane
         
-        Returns the action and the probability of that action from the softmax output.
+        Returns the action and the log probability of that action from the softmax output.
         """
         torch_observation = from_numpy(observation).float().to(self.device)
         with no_grad():
@@ -117,7 +117,7 @@ class PPOAgent:
                     "terminated": terminated
                 },
             },
-            batch_size=[self.trajectory_length],
+            batch_size=[len(self.trajectory_buffer)],
             device=self.device
         )
 
