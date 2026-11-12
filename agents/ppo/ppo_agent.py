@@ -15,6 +15,7 @@ class PPOAgent:
 
         self.num_episodes = 10
         self.trajectory_length = 8
+        self.trajectory_buffer = []
 
         self.checkpoint_interval = 100
 
@@ -50,8 +51,8 @@ class PPOAgent:
     def update(self):
         pass
 
-    def store_transition(self):
-        pass
+    def store_transition(self, state, action, reward, next_state, action_log_prob, episode_done, terminated):
+        self.trajectory_buffer.append([state, action, reward, next_state, action_log_prob, episode_done, terminated])
 
     def checkpoint(self):
         pass
@@ -75,10 +76,11 @@ class PPOAgent:
                 num_steps += 1
 
                 if current_trajectory_length % self.trajectory_length == 0:
-                    print("\nUpdating models...")
+                    # print("\nUpdating models...")
                     self.update()
                     current_trajectory_length = 0
+                    self.trajectory_buffer.clear()
 
                 if num_steps % self.checkpoint_interval == 0:
-                    print("\nCheckpointing models...")
+                    # print("\nCheckpointing models...")
                     self.checkpoint()
