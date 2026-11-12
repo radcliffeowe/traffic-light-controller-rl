@@ -1,5 +1,5 @@
 import torch.nn as nn
-from torch.nn.functional import tanh
+from torch.nn.functional import tanh, softmax
 
 class PPOPolicyNetwork(nn.Module):
     """
@@ -10,12 +10,14 @@ class PPOPolicyNetwork(nn.Module):
         super(PPOPolicyNetwork, self).__init__()
         self.layer1 = nn.Linear(in_channels, 256)
         self.layer2 = nn.Linear(256, 256)
-        self.layer3 = nn.Linear(256, 256)
-        self.layer4 = nn.Linear(256, num_actions)
+        self.layer3 = nn.Linear(256, num_actions)
 
     def forward(self, x):
         x = tanh(self.layer1(x))
         x = tanh(self.layer2(x))
-        x = tanh(self.layer3(x))
-        x = self.layer4(x)
+        return x
+
+    def softmax_output(self, x):
+        x  = self.forward(x)
+        x = softmax(self.layer3(x), 0)
         return x
