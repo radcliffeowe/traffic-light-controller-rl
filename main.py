@@ -29,7 +29,7 @@ def run(args):
             out_csv_name=args.output_path,
             single_agent=True,
             use_gui=args.use_gui,
-            num_seconds=args.num_seconds,
+            num_seconds=int(args.num_seconds),
             reward_fn="queue"
             )
     if args.test_agent:
