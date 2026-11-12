@@ -15,9 +15,5 @@ class PPOPolicyNetwork(nn.Module):
     def forward(self, x):
         x = tanh(self.layer1(x))
         x = tanh(self.layer2(x))
-        return x
-
-    def softmax_output(self, x):
-        x  = self.forward(x)
         x = softmax(self.layer3(x), 0)
         return x
