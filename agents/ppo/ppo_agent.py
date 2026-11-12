@@ -1,3 +1,6 @@
+from tqdm import tqdm
+from random import randint
+
 from agents.ppo.policy_network import PPOPolicyNetwork
 from agents.ppo.value_network import PPOValueNetwork
 
@@ -10,15 +13,10 @@ class PPOAgent:
         self.env = env
         self.device = device("cuda:0" if cuda.is_available() else "cpu")
 
-        self.lr = 3e-4
-        self.max_grad_norm = 1.0
-        self.batch_size = 1000
-        self.sub_batch_size = 64
-        self.num_epochs = 10
-        self.clip_epsilon = 0.2
-        self.gamma = 0.99
-        self.lmbda = 0.95
-        self.entropy_eps = 1e-4
+        self.num_episodes = 10
+        self.trajectory_length = 8
+
+        self.checkpoint_interval = 100
 
         self.policy_network = PPOPolicyNetwork()
         self.value_network = PPOValueNetwork()
@@ -33,18 +31,54 @@ class PPOAgent:
         - ```min_green``` is a binary variable indicating whether min_green seconds have already passed in the current phase
         - ```lane_i_density``` is the number of vehicles in incoming lane i dividided by the total capacity of the lane
         - ```lane_i_queue``` is the number of queued (speed below 0.1 m/s) vehicles in incoming lane i divided by the total capacity of the lane
+        
+        Returns the action and the log probability of that action from the softmax output.
         """
         torch_observation = from_numpy(observation).float().to(self.device)
         with no_grad():
-            action_softmax = self.policy_network(observation)
+            action_softmax = self.policy_network(torch_observation)
             if test:
                 # deterministic
-                return argmax(action_softmax).item()
+                return argmax(action_softmax).item(), None
             else:
                 # stochastic
                 cat_distributions = Categorical(action_softmax)
-                return cat_distributions.sample().item()
+                action = cat_distributions.sample().item()
+                log_probability = action_softmax[action].item()
+                return action, log_probability
 
+    def update(self):
+        pass
+
+    def store_transition(self):
+        pass
+
+    def checkpoint(self):
+        pass
 
     def train(self):
-        pass
+        num_steps = 0
+        for i in tqdm(range(self.num_episodes)):
+            current_trajectory_length = 0
+            state, info = self.env.reset(randint(0, self.num_episodes*2))
+            not_done = True
+            while not_done:
+                action, action_log_prob = self.make_action(state, False)
+                next_state, reward, terminated, truncated, info = self.env.step(action)
+                if terminated or truncated:
+                    not_done = False
+
+                self.store_transition()
+                state = next_state
+
+                current_trajectory_length += 1
+                num_steps += 1
+
+                if current_trajectory_length % self.trajectory_length == 0:
+                    print("\nUpdating models...")
+                    self.update()
+                    current_trajectory_length = 0
+
+                if num_steps % self.checkpoint_interval == 0:
+                    print("\nCheckpointing models...")
+                    self.checkpoint()
