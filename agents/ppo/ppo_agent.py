@@ -2,12 +2,16 @@ from tqdm import tqdm
 from random import randint
 import numpy as np
 
-from agents.ppo.policy_network import PPOPolicyNetwork
-from agents.ppo.value_network import PPOValueNetwork
+from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
+from agents.ppo.value_network import PPOValueNetwork, get_value_critic
 
-from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, stack, float32, long, bool
+from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, stack, float32, long, bool, randperm
+from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adam
 from torch.distributions import Categorical
+from torchrl.objectives import ClipPPOLoss
+from torchrl.objectives.value import GAE
+from tensordict import TensorDict
 
 
 class PPOAgent:
@@ -22,13 +26,30 @@ class PPOAgent:
         self.checkpoint_interval = 100
 
         self.lr = 1e-4
+        self.gamma = 0.99
+        self.lmbda = 0.95
+        self.clip_epsilon = 0.2
+        self.entropy_coeff = 0.01
 
         self.policy_network = PPOPolicyNetwork()
         self.value_network = PPOValueNetwork()
 
-        self.policy_network_optim = Adam(params=self.policy_network.parameters(), lr=self.lr)
-        self.value_network_optim = Adam(params=self.value_network.parameters(), lr=self.lr)
+        self.policy_actor = get_policy_actor(self.policy_network)
+        self.value_critic = get_value_critic(self.value_network)
+        self.advantage_module = GAE(
+            gamma=self.gamma, 
+            lmbda=self.lmbda, 
+            value_network=self.value_critic, 
+            average_gae=True
+            )
+        self.loss_module = ClipPPOLoss(
+            actor_network=self.policy_actor, 
+            critic_network=self.value_critic, 
+            clip_epsilon=self.clip_epsilon, 
+            entropy_coeff=self.entropy_coeff
+            )
 
+        self.optim = Adam(params=self.loss_module.parameters(), lr=self.lr)
 
     def make_action(self, observation, test=True):
         """
@@ -40,7 +61,7 @@ class PPOAgent:
         - ```lane_i_density``` is the number of vehicles in incoming lane i dividided by the total capacity of the lane
         - ```lane_i_queue``` is the number of queued (speed below 0.1 m/s) vehicles in incoming lane i divided by the total capacity of the lane
         
-        Returns the action and the log probability of that action from the softmax output.
+        Returns the action and the probability of that action from the softmax output.
         """
         torch_observation = from_numpy(observation).float().to(self.device)
         with no_grad():
@@ -50,26 +71,55 @@ class PPOAgent:
                 return argmax(action_softmax).item(), None
             else:
                 # stochastic
-                cat_distributions = Categorical(action_softmax)
-                action = cat_distributions.sample().item()
-                log_probability = action_softmax[action].item()
-                return action, log_probability
+                cat_distributions = Categorical(probs=action_softmax)
+                action = cat_distributions.sample()
+                log_probability = cat_distributions.log_prob(action).item()
+                return action.item(), log_probability
 
-    def update(self):
-        state, action, reward, next_state, action_log_prob, episode_done, terminated = self.format_trajectory_buffer()
+    def update(self, epochs=4, minibatch_size=8):
+        data = self.format_trajectory_buffer()
+
+        for _ in range(epochs):
+            with no_grad():
+                self.advantage_module(data)
+
+            permutation = randperm(data.shape[0], device=data.device)
+            for index in permutation.split(minibatch_size):
+                minibatch = data[index]
+                loss_td = self.loss_module(minibatch)
+                loss = loss_td["loss_objective"] + loss_td["loss_critic"] + loss_td["loss_entropy"]
+
+                self.optim.zero_grad()
+                loss.backward()
+                clip_grad_norm_(self.loss_module.parameters(), 1.0)
+                self.optim.step()
 
     def format_trajectory_buffer(self):
         state, action, reward, next_state, action_log_prob, episode_done, terminated = zip(*self.trajectory_buffer)
             
-        state = as_tensor(np.stack(state), dtype=float32).to(self.device)
-        action = as_tensor(action, dtype=long).to(self.device).unsqueeze(1)
-        reward = as_tensor(reward, dtype=float32).to(self.device).unsqueeze(1)
-        next_state = as_tensor(np.stack(next_state), dtype=float32).to(self.device)
-        action_log_prob = as_tensor(action_log_prob, dtype=float32).to(self.device).unsqueeze(1)
-        episode_done = as_tensor(episode_done, dtype=bool).to(self.device).unsqueeze(1)
-        terminated = as_tensor(terminated, dtype=bool).to(self.device).unsqueeze(1)
+        state = as_tensor(np.stack(state), dtype=float32)
+        action = as_tensor(action, dtype=long)
+        reward = as_tensor(reward, dtype=float32).unsqueeze(-1)
+        next_state = as_tensor(np.stack(next_state), dtype=float32)
+        action_log_prob = as_tensor(action_log_prob, dtype=float32)
+        episode_done = as_tensor(episode_done, dtype=bool).unsqueeze(-1)
+        terminated = as_tensor(terminated, dtype=bool).unsqueeze(-1)
 
-        return state, action, reward, next_state, action_log_prob, episode_done, terminated
+        return TensorDict(
+            {
+                "state": state,
+                "action": action,
+                "action_log_prob": action_log_prob,
+                "next": {
+                    "state": next_state,
+                    "reward": reward,
+                    "done": episode_done,
+                    "terminated": terminated
+                },
+            },
+            batch_size=[self.trajectory_length],
+            device=self.device
+        )
 
     def store_transition(self, state, action, reward, next_state, action_log_prob, episode_done, terminated):
         self.trajectory_buffer.append([state, action, reward, next_state, action_log_prob, episode_done, terminated])

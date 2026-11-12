@@ -1,6 +1,10 @@
 import torch.nn as nn
 from torch.nn.functional import tanh, softmax
 
+from tensordict.nn import TensorDictModule
+from torch.distributions import Categorical
+from torchrl.modules import ProbabilisticActor
+
 class PPOPolicyNetwork(nn.Module):
     """
     Initialize a policy network for a PPO agent.
@@ -17,3 +21,13 @@ class PPOPolicyNetwork(nn.Module):
         x = tanh(self.layer2(x))
         x = softmax(self.layer3(x), 0)
         return x
+
+def get_policy_actor(network: nn.Module) -> ProbabilisticActor:
+    policy_module = TensorDictModule(network, in_keys=["state"], out_keys=["probs"])
+    policy_actor = ProbabilisticActor(
+        module=policy_module, 
+        in_keys=["probs"], 
+        distribution_class=Categorical, 
+        return_log_prob=True
+        )
+    return policy_actor

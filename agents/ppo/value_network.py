@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch.nn.functional import tanh, relu
+from torchrl.modules import ValueOperator
 
 class PPOValueNetwork(nn.Module):
     """
@@ -17,3 +18,6 @@ class PPOValueNetwork(nn.Module):
         x = relu(self.layer2(x))
         x = self.layer3(x)
         return x
+
+def get_value_critic(network: nn.Module):
+    return ValueOperator(network, in_keys=["state"])
