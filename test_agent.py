@@ -3,12 +3,13 @@ import os
 
 from metrics import MetricsCollector
 
-def test_agent(agent, env, num_episodes=5, seed=42, output_path=None):
+def test_agent(agent, env, num_episodes=5, seed: int | list=42, output_path=None):
     print("Testing agent...")
 
     for episode in tqdm(range(num_episodes)):
         truncated=False
         terminated=False
+        episode_reward = 0.0
         state = env.reset()
         metrics_collector = MetricsCollector(env)
         while not terminated and not truncated:
@@ -21,6 +22,6 @@ def test_agent(agent, env, num_episodes=5, seed=42, output_path=None):
         if output_path:
             df = metrics_collector.get_summary()
             df.to_csv(f"{os.path.dirname(output_path)}/{agent.__class__.__name__}_episode_{episode}.csv")
-    env.close()
+    # env.close()
 
 

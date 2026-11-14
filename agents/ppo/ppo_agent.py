@@ -1,9 +1,11 @@
 from tqdm import tqdm
 from random import randint
 import numpy as np
+import os
 
 from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
+from test_agent import test_agent
 
 from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm
 from torch.nn.utils import clip_grad_norm_
@@ -23,7 +25,13 @@ class PPOAgent:
         self.trajectory_length = 8
         self.trajectory_buffer = []
 
-        self.checkpoint_interval = 100
+        self.checkpoint_interval = 2
+        self.eval_episodes = 3
+        self.rand_seed_ceiling = self.num_episodes*2
+        self.eval_seeds = [self.rand_seed_ceiling + 1, self.rand_seed_ceiling + 2, self.rand_seed_ceiling + 3]
+        self.best_eval_reward = float("-inf")
+        self.checkpoint_dir = "checkpoints"
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
 
         self.lr = 1e-4
         self.gamma = 0.99
@@ -50,6 +58,10 @@ class PPOAgent:
             )
 
         self.optim = Adam(params=self.loss_module.parameters(), lr=self.lr)
+
+    def eval_agent(self):
+        self.policy_network.eval()
+        test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], self.checkpoint_dir)
 
     def make_action(self, observation, test=True):
         """
@@ -132,7 +144,7 @@ class PPOAgent:
         for i in tqdm(range(self.num_episodes)):
             self.trajectory_buffer.clear()
             current_trajectory_length = 0
-            state, info = self.env.reset(randint(0, self.num_episodes*2))
+            state, info = self.env.reset(randint(0, self.rand_seed_ceiling))
             not_done = True
             while not_done:
                 action, action_log_prob = self.make_action(state, False)

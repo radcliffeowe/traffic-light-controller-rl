@@ -1,6 +1,7 @@
 import argparse
 
 from test_agent import test_agent
+from rewards import get_mean_queued
 
 import gymnasium as gym
 import sumo_rl
@@ -30,7 +31,7 @@ def run(args):
             single_agent=True,
             use_gui=args.use_gui,
             num_seconds=int(args.num_seconds),
-            reward_fn="queue"
+            reward_fn=get_mean_queued
             )
     if args.test_agent:
         try:
@@ -50,6 +51,7 @@ def run(args):
             raise e
 
         test_agent(agent, env, output_path=args.output_path) 
+        env.close()
     else:
         try:
             if args.agent_name == "ppo":
