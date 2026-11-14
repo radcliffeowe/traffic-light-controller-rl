@@ -7,7 +7,7 @@ from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
 from test_agent import test_agent
 
-from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm
+from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm, save
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adam
 from torch.distributions import Categorical
@@ -61,7 +61,9 @@ class PPOAgent:
 
     def eval_agent(self):
         self.policy_network.eval()
-        test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], self.checkpoint_dir)
+        mean_reward, _ = test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], self.checkpoint_dir)
+        self.policy_network.train()
+        return mean_reward
 
     def make_action(self, observation, test=True):
         """
@@ -136,8 +138,12 @@ class PPOAgent:
     def store_transition(self, state, action, reward, next_state, action_log_prob, episode_done, terminated):
         self.trajectory_buffer.append([state, action, reward, next_state, action_log_prob, episode_done, terminated])
 
-    def checkpoint(self):
-        pass
+    def checkpoint(self, episode):
+        mean_reward = self.eval_agent()
+        if mean_reward > self.best_eval_reward:
+            self.best_eval_reward = mean_reward
+            save(self.policy_network.state_dict(), f"{self.checkpoint_dir}/ppo_policy_{episode}.pth")
+            save(self.value_network.state_dict(), f"{self.checkpoint_dir}/ppo_value_{episode}.pth")
 
     def train(self):
         num_steps = 0
