@@ -8,7 +8,7 @@ from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
 from test_agent import test_agent
 
-from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm, save
+from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm, save, load
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adam
 from torch.distributions import Categorical
@@ -42,12 +42,12 @@ class PPOAgent:
         self.checkpoint_dir = "agents/ppo/checkpoints"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-        self.policy_lr = 1e-4
+        self.policy_lr = 5e-4
         self.value_lr = 1e-3
         self.gamma = 0.95
         self.lmbda = 0.95
         self.clip_epsilon = 0.2
-        self.entropy_coeff = 0.02
+        self.entropy_coeff = 0.005
 
         self.policy_network = PPOPolicyNetwork().to(self.device)
         self.value_network = PPOValueNetwork().to(self.device)
@@ -74,6 +74,10 @@ class PPOAgent:
         ])
 
         self.scheduler = LambdaLR(self.optim, lambda u: max(0.1, 1 -u / (self.num_episodes*3)))
+
+    def load_agent(self):
+        self.policy_network.load_state_dict(load("./agents/ppo/checkpoints/ppo_policy_max.pth", map_location=self.device))
+        self.value_network.load_state_dict(load("./agents/ppo/checkpoints/ppo_value_max.pth", map_location=self.device))
 
     def eval_agent(self):
         self.policy_network.eval()
@@ -106,7 +110,7 @@ class PPOAgent:
                 log_probability = cat_distributions.log_prob(action).item()
                 return action.item(), log_probability
 
-    def update(self, epochs=3, minibatch_size=120):
+    def update(self, epochs=3, minibatch_size=32):
         data = self.format_trajectory_buffer()
         update_metrics = {"policy_loss": [], "value_loss": [], "entropy": [], "clip_fraction": []}
         for _ in range(epochs):

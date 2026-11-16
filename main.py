@@ -44,13 +44,16 @@ def run(args):
             elif args.agent_name == "ppo":
                 from agents.ppo.ppo_agent import PPOAgent
                 agent = PPOAgent(env)
+                agent.load_agent()
             else:
                 print("Agent not found, exiting...")
                 raise Exception("Agent not found")
         except Exception as e:
             raise e
 
-        test_agent(agent, env, output_path=args.output_path) 
+        mean_reward, _ = test_agent(agent, env, output_path=args.output_path) 
+        print()
+        print(f"EVAL {args.agent_name} mean reward: {mean_reward}")
         env.close()
     else:
         try:
