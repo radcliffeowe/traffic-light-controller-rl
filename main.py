@@ -64,6 +64,7 @@ def run(args):
                 raise Exception(f"Cannot train {args.agent_name} agent")
             
             agent.train()
+            env.close()
         except Exception as e:
             raise e
 
