@@ -2,6 +2,7 @@ from tqdm import tqdm
 from random import randint
 import numpy as np
 import os
+import json
 
 from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
@@ -11,6 +12,7 @@ from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32,
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adam
 from torch.distributions import Categorical
+from torch.optim.lr_scheduler import LambdaLR
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
 from tensordict import TensorDict
@@ -20,27 +22,36 @@ class PPOAgent:
     def __init__(self, env):
         self.env = env
         self.device = device("cuda:0" if cuda.is_available() else "cpu")
+        self.metrics = {
+            "episode": [], "train_reward": [], "episode_len": [],
+            "policy_loss": [], "value_loss": [], "entropy": [], 
+            "clip_fraction": [], "eval_episode": [], "eval_reward": []
+            }
+        self.metrics_dir = "agents/ppo/results"
+        os.makedirs(self.metrics_dir, exist_ok=True)
 
-        self.num_episodes = 5
-        self.trajectory_length = 8
+        self.num_episodes = 300
+        self.trajectory_length = 240
         self.trajectory_buffer = []
 
-        self.checkpoint_interval = 2
+        self.checkpoint_interval = 10
         self.eval_episodes = 3
         self.rand_seed_ceiling = self.num_episodes*2
         self.eval_seeds = [self.rand_seed_ceiling + 1, self.rand_seed_ceiling + 2, self.rand_seed_ceiling + 3]
         self.best_eval_reward = float("-inf")
-        self.checkpoint_dir = "checkpoints"
+        self.checkpoint_dir = "agents/ppo/checkpoints"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-        self.lr = 1e-4
-        self.gamma = 0.99
+        self.policy_lr = 1e-4
+        self.value_lr = 1e-3
+        self.gamma = 0.95
         self.lmbda = 0.95
         self.clip_epsilon = 0.2
-        self.entropy_coeff = 0.01
+        self.entropy_coeff = 0.02
 
         self.policy_network = PPOPolicyNetwork().to(self.device)
         self.value_network = PPOValueNetwork().to(self.device)
+
 
         self.policy_actor = get_policy_actor(self.policy_network)
         self.value_critic = get_value_critic(self.value_network)
@@ -57,11 +68,16 @@ class PPOAgent:
             entropy_coeff=self.entropy_coeff
             )
 
-        self.optim = Adam(params=self.loss_module.parameters(), lr=self.lr)
+        self.optim = Adam([
+            {"params": self.policy_network.parameters(), "lr": self.policy_lr},
+            {"params": self.value_network.parameters(), "lr": self.value_lr}
+        ])
+
+        self.scheduler = LambdaLR(self.optim, lambda u: max(0.1, 1 -u / (self.num_episodes*3)))
 
     def eval_agent(self):
         self.policy_network.eval()
-        mean_reward, _ = test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], self.checkpoint_dir)
+        mean_reward, _ = test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], None)
         self.policy_network.train()
         return mean_reward
 
@@ -90,9 +106,9 @@ class PPOAgent:
                 log_probability = cat_distributions.log_prob(action).item()
                 return action.item(), log_probability
 
-    def update(self, epochs=4, minibatch_size=8):
+    def update(self, epochs=3, minibatch_size=120):
         data = self.format_trajectory_buffer()
-
+        update_metrics = {"policy_loss": [], "value_loss": [], "entropy": [], "clip_fraction": []}
         for _ in range(epochs):
             with no_grad():
                 self.advantage_module(data)
@@ -107,6 +123,15 @@ class PPOAgent:
                 loss.backward()
                 clip_grad_norm_(self.loss_module.parameters(), 1.0)
                 self.optim.step()
+                
+                update_metrics["policy_loss"].append(loss_td["loss_objective"].item())
+                update_metrics["value_loss"].append(loss_td["loss_critic"].item())
+                update_metrics["entropy"].append(loss_td["entropy"].item())
+                if "clip_fraction" in loss_td.keys():
+                    update_metrics["clip_fraction"].append(loss_td["clip_fraction"].item())
+
+            self.scheduler.step()
+        return {k: float(np.mean(v)) if v else np.nan for k,v in update_metrics.items()}
 
     def format_trajectory_buffer(self):
         state, action, reward, next_state, action_log_prob, episode_done, terminated = zip(*self.trajectory_buffer)
@@ -140,21 +165,27 @@ class PPOAgent:
 
     def checkpoint(self, episode):
         mean_reward = self.eval_agent()
+        print(f"Episode {episode} eval mean reward: {mean_reward}")
         if mean_reward > self.best_eval_reward:
             self.best_eval_reward = mean_reward
-            save(self.policy_network.state_dict(), f"{self.checkpoint_dir}/ppo_policy_{episode}.pth")
-            save(self.value_network.state_dict(), f"{self.checkpoint_dir}/ppo_value_{episode}.pth")
+            save(self.policy_network.state_dict(), f"{self.checkpoint_dir}/ppo_policy_max.pth")
+            save(self.value_network.state_dict(), f"{self.checkpoint_dir}/ppo_value_max.pth")
+        return mean_reward
 
-    def train(self):
-        num_steps = 0
+    def train(self):  
         for i in tqdm(range(self.num_episodes)):
+            num_steps = 0
             self.trajectory_buffer.clear()
             current_trajectory_length = 0
-            state, info = self.env.reset(randint(0, self.rand_seed_ceiling))
+            episode_metrics = []
+            episode_rewards = []
+            state, info = self.env.reset(0)
             not_done = True
+
             while not_done:
                 action, action_log_prob = self.make_action(state, False)
                 next_state, reward, terminated, truncated, info = self.env.step(action)
+                episode_rewards.append(reward)
                 if terminated or truncated:
                     not_done = False
 
@@ -166,10 +197,26 @@ class PPOAgent:
 
                 if current_trajectory_length % self.trajectory_length == 0:
                     # print("\nUpdating models...")
-                    self.update()
+                    episode_results = self.update()
+                    episode_metrics.append(episode_results)
                     current_trajectory_length = 0
                     self.trajectory_buffer.clear()
 
-                if num_steps % self.checkpoint_interval == 0:
-                    # print("\nCheckpointing models...")
-                    self.checkpoint()
+            self.metrics["episode"].append(i+1)
+            episode_train_reward = float(np.mean(episode_rewards))
+            self.metrics["train_reward"].append(episode_train_reward)
+
+            print(f"Episode {i+1}, mean_reward={episode_train_reward}")
+            self.metrics["episode_len"].append(len(episode_rewards))
+            for key in ["policy_loss", "value_loss", "entropy", "clip_fraction"]:
+                values = [s[key] for s in episode_metrics]
+                self.metrics[key].append(float(np.nanmean(values)) if values else np.nan)
+            if i>0 and i % self.checkpoint_interval == 0:
+                # print("\nCheckpointing models...")
+                eval_mean_reward = self.checkpoint(i)
+                self.metrics["eval_episode"].append(i+1)
+                self.metrics["eval_reward"].append(eval_mean_reward)
+                print(f"**** EVAL episode {i+1}, reward: {eval_mean_reward} ****")
+
+        with open(f"{self.metrics_dir}/training_results.json", "w") as f:
+            json.dump(self.metrics, f)

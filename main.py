@@ -27,7 +27,7 @@ def run(args):
     env = sumo_rl.SumoEnvironment(
             net_file=args.net_file,
             route_file=args.route_file,
-            out_csv_name=args.output_path,
+            # out_csv_name=args.output_path,
             single_agent=True,
             use_gui=args.use_gui,
             num_seconds=int(args.num_seconds),

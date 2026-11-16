@@ -4,7 +4,7 @@ import numpy as np
 
 from metrics import MetricsCollector
 
-def test_agent(agent, env, num_episodes=5, seed: int | list=42, output_path=None):
+def test_agent(agent, env, num_episodes=5, seed=42, output_path=None):
     print("Testing agent...")
     metrics_collector = MetricsCollector(env)
     total_rewards = []
@@ -12,12 +12,14 @@ def test_agent(agent, env, num_episodes=5, seed: int | list=42, output_path=None
         truncated=False
         terminated=False
         episode_rewards = []
-        state = env.reset()
+        state = env.reset(seed)
         metrics_collector.env = env
         while not terminated and not truncated:
             if isinstance(state, tuple):
                 state = state[0]  # first observation sometimes includes info dict
             action = agent.make_action(state, test=True)
+            if isinstance(action, tuple):
+                action = action[0]
             state, reward, terminated, truncated, info = env.step(action)
             episode_rewards.append(reward)
             metrics_collector.record_metrics()

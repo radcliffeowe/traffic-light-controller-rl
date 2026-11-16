@@ -19,7 +19,7 @@ class PPOPolicyNetwork(nn.Module):
     def forward(self, x):
         x = tanh(self.layer1(x))
         x = tanh(self.layer2(x))
-        x = softmax(self.layer3(x), 0)
+        x = softmax(self.layer3(x), -1)
         return x
 
 def get_policy_actor(network: nn.Module) -> ProbabilisticActor:
