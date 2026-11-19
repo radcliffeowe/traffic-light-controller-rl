@@ -35,7 +35,11 @@ def run(args):
             )
     if args.test_agent:
         try:
-            if args.agent_name == "random":
+            if args.agent_name == "fixed":
+                from agents.fixed_time_agent import FixedTimeAgent
+                agent = FixedTimeAgent(env)
+                print("initializing fixed agent")
+            elif args.agent_name == "random":
                 from agents.random_agent import RandomAgent
                 agent = RandomAgent(env)
             elif args.agent_name == "greedy":
