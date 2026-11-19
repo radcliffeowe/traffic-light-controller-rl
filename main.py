@@ -15,6 +15,10 @@ def parse():
     parser.add_argument('--output_path', default=None)
     parser.add_argument('--use_gui', action='store_true')
     parser.add_argument('--num_seconds', default=1000)
+    parser.add_argument('--num_episodes', type=int, default=300)
+    parser.add_argument('--eval_interval', type=int, default=25)
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--checkpoint')
     try:
         from argument import add_arguments
         parser = add_arguments(parser)
@@ -24,6 +28,15 @@ def parse():
     return args
 
 def run(args):
+    if args.agent_name == "reinforce_baseline":
+        import torch
+        if args.test_agent and not args.checkpoint:
+            raise ValueError("--checkpoint is required to evaluate reinforce_baseline")
+        if min(args.num_episodes, args.eval_interval, int(args.num_seconds)) < 1:
+            raise ValueError("Episode count, evaluation interval, and duration must be positive")
+        torch.set_num_threads(1)
+        torch.manual_seed(args.seed)
+
     env = sumo_rl.SumoEnvironment(
             net_file=args.net_file,
             route_file=args.route_file,
@@ -41,6 +54,11 @@ def run(args):
             elif args.agent_name == "greedy":
                 from agents.greedy_agent import GreedyAgent
                 agent = GreedyAgent(env)
+            elif args.agent_name == "reinforce_baseline":
+                from agents.reinforce_baseline_agent import ReinforceBaselineAgent
+                agent = ReinforceBaselineAgent(env)
+                agent.load_state_dict(torch.load(args.checkpoint, map_location="cpu", weights_only=True))
+                agent.eval()
             elif args.agent_name == "ppo":
                 from agents.ppo.ppo_agent import PPOAgent
                 agent = PPOAgent(env)
@@ -51,7 +69,10 @@ def run(args):
         except Exception as e:
             raise e
 
-        mean_reward, _ = test_agent(agent, env, output_path=args.output_path) 
+        if args.agent_name == "reinforce_baseline":
+            mean_reward, _ = test_agent(agent, env, seed=args.seed, output_path=args.output_path)
+        else:
+            mean_reward, _ = test_agent(agent, env, output_path=args.output_path)
         print()
         print(f"EVAL {args.agent_name} mean reward: {mean_reward}")
         env.close()
@@ -60,9 +81,21 @@ def run(args):
             if args.agent_name == "ppo":
                 from agents.ppo.ppo_agent import PPOAgent
                 agent = PPOAgent(env)
+            elif args.agent_name == "reinforce_baseline":
+                from agents.reinforce_baseline_agent import ReinforceBaselineAgent
+                from train_reinforce import train_agent
+                agent = ReinforceBaselineAgent(env)
+                try:
+                    train_agent(
+                        agent, env, args.output_path or "outputs/reinforce-baseline",
+                        args.num_episodes, args.eval_interval, args.seed,
+                    )
+                finally:
+                    env.close()
+                return
             else:
                 raise Exception(f"Cannot train {args.agent_name} agent")
-            
+
             agent.train()
             env.close()
         except Exception as e:

@@ -1,0 +1,84 @@
+{
+  "agent": "REINFORCE with a learned state-value baseline",
+  "policy_weighting": "gamma ** timestep",
+  "network": "two-way-single-intersection/single-intersection.net.xml",
+  "route": "two-way-single-intersection/scenario-normal.rou.xml",
+  "route_sha256": "432605ec720116d354d522aa0c3b9c05d82cb0a5b245870159fc4c2e1318fdfa",
+  "training": {
+    "episodes": 300,
+    "episode_seconds": 3600,
+    "decisions_per_episode": 720,
+    "gamma": 0.95,
+    "policy_lr": 0.0005,
+    "value_lr": 0.001,
+    "checkpoint_interval": 25,
+    "validation_seeds": [
+      601,
+      602,
+      603
+    ]
+  },
+  "evaluation_seeds": [
+    801,
+    802,
+    803,
+    804,
+    805
+  ],
+  "runs": [
+    {
+      "training_seed": 0,
+      "selected_episode": 275,
+      "checkpoint_sha256": "f0c4462e1b24792501c1ad2123ebd795e57033537b1e90ba9f0bb52cd37bfe8d",
+      "deterministic_episode_rewards": [
+        -0.03192172785614578,
+        -0.029562621372567655,
+        -0.030294846231905936,
+        -0.03125065520220064,
+        -0.03111616403048245
+      ],
+      "deterministic_mean_reward": -0.030829202938660493,
+      "sampled_mean_reward": -0.030376260201352662
+    },
+    {
+      "training_seed": 1,
+      "selected_episode": 250,
+      "checkpoint_sha256": "9be724e22823bd2429b9b84fe7cac9da2752c2fb1b2bd86f6d4d5f2289e78d89",
+      "deterministic_episode_rewards": [
+        -0.11757288993441688,
+        -0.11389113404842975,
+        -0.1181157904778678,
+        -0.11610217939471197,
+        -0.11222809982276342
+      ],
+      "deterministic_mean_reward": -0.11558201873563796,
+      "sampled_mean_reward": -0.045302843775567446
+    },
+    {
+      "training_seed": 2,
+      "selected_episode": 275,
+      "checkpoint_sha256": "4db419e0192965c29c67abcd4a6b0922564e98476db6351d5ca7e2108fea3880",
+      "deterministic_episode_rewards": [
+        -0.042648363403911135,
+        -0.04663432239163131,
+        -0.04189616215747776,
+        -0.042243899805431154,
+        -0.04338574252056112
+      ],
+      "deterministic_mean_reward": -0.04336169805580249,
+      "sampled_mean_reward": -0.04221299464562938
+    }
+  ],
+  "aggregate": {
+    "training_runs": 3,
+    "deterministic_mean": -0.06325763991003365,
+    "deterministic_std_across_runs": 0.04574545139223471,
+    "sampled_mean": -0.0392973662075165
+  },
+  "limitations": [
+    "Three training runs on normal traffic only.",
+    "Evaluation seeds differ from the seed-42 entries in the shared results document.",
+    "This implementation uses episode-batched Adam updates.",
+    "This result does not establish that the baseline reduces gradient variance."
+  ]
+}
