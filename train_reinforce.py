@@ -8,6 +8,7 @@ import torch
 from sumo_rl import SumoEnvironment
 
 from agents.reinforce_baseline_agent import ReinforceBaselineAgent
+from agents.reinforce_agent import ReinforceAgent
 from rewards import get_mean_queued
 
 
@@ -34,16 +35,12 @@ def run_episode(agent, env, seed, training):
 def train_agent(agent, env, output_dir, num_episodes=300, eval_interval=25, seed=0):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    metrics = {key: [] for key in (
-        "episode", "train_reward", "episode_len", "policy_loss", "value_loss",
-        "entropy", "return_mean", "value_mean", "advantage_mean",
-        "value_explained_variance", "eval_episode", "eval_reward",
-    )}
+    metrics = {key: [] for key in ("episode", "train_reward", "episode_len", "eval_episode", "eval_reward")}
     best_eval_reward = float("-inf")
     for episode in range(1, num_episodes + 1):
         reward, length, losses = run_episode(agent, env, seed=seed, training=True)
         for key, value in {"episode": episode, "train_reward": reward, "episode_len": length, **losses}.items():
-            metrics[key].append(value)
+            metrics.setdefault(key, []).append(value)
         if episode % eval_interval == 0 or episode == num_episodes:
             eval_reward = float(np.mean([
                 run_episode(agent, env, seed=seed, training=False)[0] for seed in (601, 602, 603)
@@ -59,7 +56,8 @@ def train_agent(agent, env, output_dir, num_episodes=300, eval_interval=25, seed
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train REINFORCE with a state-value baseline")
+    parser = argparse.ArgumentParser(description="Train an episodic REINFORCE agent")
+    parser.add_argument("--agent", choices=("reinforce", "reinforce_baseline"), default="reinforce_baseline")
     parser.add_argument("--route-file", type=Path, required=True, help="SUMO route file")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--episodes", type=int, default=300)
@@ -77,8 +75,10 @@ def main():
         "output_dir": str(args.output_dir.resolve()),
         "route_sha256": hashlib.sha256(args.route_file.read_bytes()).hexdigest(),
         "evaluation_seeds": [601, 602, 603], "gamma": 0.95,
-        "policy_lr": 5e-4, "value_lr": 1e-3,
+        "policy_lr": 5e-4,
     }
+    if args.agent == "reinforce_baseline":
+        config["value_lr"] = 1e-3
     (args.output_dir / "config.json").write_text(json.dumps(config, indent=2) + "\n")
 
     torch.set_num_threads(1)
@@ -93,7 +93,8 @@ def main():
         additional_sumo_cmd="--no-step-log true",
     )
     try:
-        agent = ReinforceBaselineAgent(env)
+        agent_class = ReinforceAgent if args.agent == "reinforce" else ReinforceBaselineAgent
+        agent = agent_class(env)
         train_agent(agent, env, args.output_dir, args.episodes, args.eval_interval, args.seed)
     finally:
         env.close()

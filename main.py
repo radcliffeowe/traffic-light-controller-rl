@@ -28,10 +28,10 @@ def parse():
     return args
 
 def run(args):
-    if args.agent_name == "reinforce_baseline":
+    if args.agent_name in ("reinforce", "reinforce_baseline"):
         import torch
         if args.test_agent and not args.checkpoint:
-            raise ValueError("--checkpoint is required to evaluate reinforce_baseline")
+            raise ValueError("--checkpoint is required to evaluate a REINFORCE agent")
         if min(args.num_episodes, args.eval_interval, int(args.num_seconds)) < 1:
             raise ValueError("Episode count, evaluation interval, and duration must be positive")
         torch.set_num_threads(1)
@@ -58,9 +58,11 @@ def run(args):
             elif args.agent_name == "greedy":
                 from agents.greedy_agent import GreedyAgent
                 agent = GreedyAgent(env)
-            elif args.agent_name == "reinforce_baseline":
+            elif args.agent_name in ("reinforce", "reinforce_baseline"):
                 from agents.reinforce_baseline_agent import ReinforceBaselineAgent
-                agent = ReinforceBaselineAgent(env)
+                from agents.reinforce_agent import ReinforceAgent
+                agent_class = ReinforceAgent if args.agent_name == "reinforce" else ReinforceBaselineAgent
+                agent = agent_class(env)
                 agent.load_state_dict(torch.load(args.checkpoint, map_location="cpu", weights_only=True))
                 agent.eval()
             elif args.agent_name == "ppo":
@@ -73,7 +75,7 @@ def run(args):
         except Exception as e:
             raise e
 
-        if args.agent_name == "reinforce_baseline":
+        if args.agent_name in ("reinforce", "reinforce_baseline"):
             mean_reward, _ = test_agent(agent, env, seed=args.seed, output_path=args.output_path)
         else:
             mean_reward, _ = test_agent(agent, env, output_path=args.output_path)
@@ -85,13 +87,16 @@ def run(args):
             if args.agent_name == "ppo":
                 from agents.ppo.ppo_agent import PPOAgent
                 agent = PPOAgent(env)
-            elif args.agent_name == "reinforce_baseline":
+            elif args.agent_name in ("reinforce", "reinforce_baseline"):
                 from agents.reinforce_baseline_agent import ReinforceBaselineAgent
+                from agents.reinforce_agent import ReinforceAgent
                 from train_reinforce import train_agent
-                agent = ReinforceBaselineAgent(env)
+                agent_class = ReinforceAgent if args.agent_name == "reinforce" else ReinforceBaselineAgent
+                agent = agent_class(env)
+                default_output = "outputs/reinforce" if args.agent_name == "reinforce" else "outputs/reinforce-baseline"
                 try:
                     train_agent(
-                        agent, env, args.output_path or "outputs/reinforce-baseline",
+                        agent, env, args.output_path or default_output,
                         args.num_episodes, args.eval_interval, args.seed,
                     )
                 finally:

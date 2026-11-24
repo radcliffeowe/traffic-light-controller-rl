@@ -8,12 +8,14 @@ import torch
 from sumo_rl import SumoEnvironment
 
 from agents.reinforce_baseline_agent import ReinforceBaselineAgent
+from agents.reinforce_agent import ReinforceAgent
 from rewards import get_mean_queued
 from train_reinforce import NETWORK
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--agent", choices=("reinforce", "reinforce_baseline"), default="reinforce_baseline")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--route-file", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -32,7 +34,8 @@ def main():
         reward_fn=get_mean_queued, additional_sumo_cmd="--no-step-log true",
     )
     try:
-        agent = ReinforceBaselineAgent(env)
+        agent_class = ReinforceAgent if args.agent == "reinforce" else ReinforceBaselineAgent
+        agent = agent_class(env)
         agent.load_state_dict(torch.load(args.checkpoint, map_location="cpu", weights_only=True))
         agent.eval()
         results = {}

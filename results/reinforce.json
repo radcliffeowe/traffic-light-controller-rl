@@ -1,0 +1,299 @@
+{
+  "agent": "REINFORCE without a learned baseline",
+  "policy_weighting": "gamma ** timestep",
+  "network": "two-way-single-intersection/single-intersection.net.xml",
+  "route": "two-way-single-intersection/scenario-normal.rou.xml",
+  "route_sha256": "432605ec720116d354d522aa0c3b9c05d82cb0a5b245870159fc4c2e1318fdfa",
+  "training": {
+    "episodes": 300,
+    "episode_seconds": 3600,
+    "decisions_per_episode": 720,
+    "gamma": 0.95,
+    "policy_lr": 0.0005,
+    "checkpoint_interval": 25,
+    "validation_seeds": [
+      601,
+      602,
+      603
+    ]
+  },
+  "evaluation_seeds": [
+    801,
+    802,
+    803,
+    804,
+    805
+  ],
+  "runs": [
+    {
+      "training_seed": 0,
+      "selected_episode": 175,
+      "validation_mean_reward": -0.42864128768606574,
+      "checkpoint_sha256": "ee8add7095713077ae6735c3d63512ec6a1c8d8eab551ac5925976435a9f6f51",
+      "deterministic_episode_rewards": [
+        -0.430697330828539,
+        -0.43026839295265673,
+        -0.4307951009745215,
+        -0.43116702053409517,
+        -0.4309885213233664
+      ],
+      "deterministic_mean_reward": -0.4307832733226357,
+      "deterministic_observed_phase_counts": [
+        [
+          384,
+          0,
+          336,
+          0
+        ],
+        [
+          384,
+          0,
+          336,
+          0
+        ],
+        [
+          384,
+          0,
+          336,
+          0
+        ],
+        [
+          384,
+          0,
+          336,
+          0
+        ],
+        [
+          382,
+          0,
+          338,
+          0
+        ]
+      ],
+      "sampled_episode_rewards": [
+        -0.07178111389266285,
+        -0.07549065035195715,
+        -0.12581996371402854,
+        -0.07669163598573163,
+        -0.10044647225157528
+      ],
+      "sampled_mean_reward": -0.09004596723919109,
+      "sampled_observed_phase_counts": [
+        [
+          276,
+          52,
+          265,
+          127
+        ],
+        [
+          302,
+          47,
+          256,
+          115
+        ],
+        [
+          269,
+          38,
+          266,
+          147
+        ],
+        [
+          267,
+          47,
+          273,
+          133
+        ],
+        [
+          273,
+          46,
+          277,
+          124
+        ]
+      ]
+    },
+    {
+      "training_seed": 1,
+      "selected_episode": 125,
+      "validation_mean_reward": -0.1666638823970484,
+      "checkpoint_sha256": "f7c5b3af0cfb45359e47bbba16a5ca81ae2e62b481f4129e97c4d9ae5236d603",
+      "deterministic_episode_rewards": [
+        -0.16645119716216492,
+        -0.16702505528159367,
+        -0.16669949724733538,
+        -0.1662010782356855,
+        -0.16657582943356983
+      ],
+      "deterministic_mean_reward": -0.16659053147206987,
+      "deterministic_observed_phase_counts": [
+        [
+          256,
+          232,
+          0,
+          232
+        ],
+        [
+          256,
+          232,
+          0,
+          232
+        ],
+        [
+          256,
+          232,
+          0,
+          232
+        ],
+        [
+          256,
+          232,
+          0,
+          232
+        ],
+        [
+          256,
+          232,
+          0,
+          232
+        ]
+      ],
+      "sampled_episode_rewards": [
+        -0.1604284032308865,
+        -0.1469381516883755,
+        -0.17408049796765013,
+        -0.16267101243358287,
+        -0.15987686061894266
+      ],
+      "sampled_mean_reward": -0.16079898518788754,
+      "sampled_observed_phase_counts": [
+        [
+          249,
+          161,
+          101,
+          209
+        ],
+        [
+          238,
+          153,
+          135,
+          194
+        ],
+        [
+          223,
+          173,
+          105,
+          219
+        ],
+        [
+          212,
+          160,
+          115,
+          233
+        ],
+        [
+          233,
+          158,
+          114,
+          215
+        ]
+      ]
+    },
+    {
+      "training_seed": 2,
+      "selected_episode": 225,
+      "validation_mean_reward": -0.1857624726814656,
+      "checkpoint_sha256": "bd57cb39d84cf3bf7b2d09b7341d76d2d5a430ee412f99a893cc1fc6990e0528",
+      "deterministic_episode_rewards": [
+        -0.18563596721123576,
+        -0.18431696306267017,
+        -0.18697085637315472,
+        -0.1837527000154686,
+        -0.18834479616863378
+      ],
+      "deterministic_mean_reward": -0.18580425656623262,
+      "deterministic_observed_phase_counts": [
+        [
+          253,
+          0,
+          251,
+          216
+        ],
+        [
+          257,
+          0,
+          254,
+          209
+        ],
+        [
+          254,
+          0,
+          252,
+          214
+        ],
+        [
+          254,
+          0,
+          252,
+          214
+        ],
+        [
+          255,
+          0,
+          252,
+          213
+        ]
+      ],
+      "sampled_episode_rewards": [
+        -0.0528490026250021,
+        -0.04890586474110602,
+        -0.0650716395174171,
+        -0.052980436186450625,
+        -0.08226915391905265
+      ],
+      "sampled_mean_reward": -0.0604152193978057,
+      "sampled_observed_phase_counts": [
+        [
+          250,
+          77,
+          247,
+          146
+        ],
+        [
+          255,
+          82,
+          257,
+          126
+        ],
+        [
+          236,
+          77,
+          248,
+          159
+        ],
+        [
+          247,
+          92,
+          241,
+          140
+        ],
+        [
+          245,
+          64,
+          264,
+          147
+        ]
+      ]
+    }
+  ],
+  "aggregate": {
+    "training_runs": 3,
+    "deterministic_mean": -0.2610593537869794,
+    "deterministic_std_across_runs": 0.14729884064346185,
+    "sampled_mean": -0.10375339060829476
+  },
+  "baseline_reference_mean": -0.06325763991003365,
+  "limitations": [
+    "Three training seeds on normal traffic only.",
+    "These measurements compare the selected implementations and do not prove gradient variance reduction.",
+    "Validation seeds choose checkpoints; evaluation seeds are separate but have been inspected during development."
+  ]
+}

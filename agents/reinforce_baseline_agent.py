@@ -1,54 +1,28 @@
 import torch
 from torch import nn
-from torch.distributions import Categorical
 from torch.nn import functional as F
 
+from agents.reinforce_agent import ReinforceAgent
 
-class ReinforceBaselineAgent(nn.Module):
+
+class ReinforceBaselineAgent(ReinforceAgent):
     """Monte Carlo policy gradient with a learned state-value baseline."""
 
     def __init__(self, env, gamma=0.95):
-        super().__init__()
-        observation_size = env.observation_space.shape[0]
-        self.policy = self._network(observation_size, env.action_space.n)
-        self.value = self._network(observation_size, 1)
-        self.gamma = gamma
+        super().__init__(env, gamma)
+        self.value = self._network(env.observation_space.shape[0], 1)
         self.optimizer = torch.optim.Adam([
             {"params": self.policy.parameters(), "lr": 5e-4},
             {"params": self.value.parameters(), "lr": 1e-3},
         ])
 
-    @staticmethod
-    def _network(input_size, output_size):
-        return nn.Sequential(
-            nn.Linear(input_size, 256), nn.Tanh(),
-            nn.Linear(256, 256), nn.Tanh(),
-            nn.Linear(256, output_size),
-        )
-
-    @torch.no_grad()
-    def make_action(self, observation, test=True):
-        logits = self.policy(torch.as_tensor(observation, dtype=torch.float32))
-        if test:
-            return logits.argmax().item()
-        return Categorical(logits=logits).sample().item()
-
     def update(self, observations, actions, rewards):
-        returns = []
-        discounted_return = 0.0
-        for reward in reversed(rewards):
-            discounted_return = reward + self.gamma * discounted_return
-            returns.append(discounted_return)
-        targets = torch.tensor(returns[::-1], dtype=torch.float32)
+        targets = self._discounted_returns(rewards)
         states = torch.as_tensor(observations, dtype=torch.float32)
         action_indices = torch.as_tensor(actions, dtype=torch.long)
-
-        distribution = Categorical(logits=self.policy(states))
         values = self.value(states).squeeze(-1)
         advantages = targets - values.detach()
-        # The discounted objective also weights each decision from the episode start.
-        discounts = self.gamma ** torch.arange(len(rewards), dtype=targets.dtype)
-        policy_loss = -(discounts * distribution.log_prob(action_indices) * advantages).mean()
+        distribution, policy_loss = self._policy_objective(states, action_indices, advantages)
         value_loss = F.mse_loss(values, targets)
 
         self.optimizer.zero_grad()
