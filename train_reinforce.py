@@ -47,7 +47,7 @@ def train_agent(agent, envs, output_dir, num_episodes=300, eval_interval=25, see
             metrics[key].append(value)
         if episode % eval_interval == 0 or episode == num_episodes:
             eval_reward = float(np.mean([
-                run_episode(agent, env, seed=seed, training=False)[0] for seed in (601, 602, 603)
+                run_episode(agent, eval_env, seed=601, training=False)[0] for eval_env in envs
             ]))
             metrics["eval_episode"].append(episode)
             metrics["eval_reward"].append(eval_reward)
