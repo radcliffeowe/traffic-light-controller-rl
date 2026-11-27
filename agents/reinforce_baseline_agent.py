@@ -9,8 +9,12 @@ class ReinforceBaselineAgent(nn.Module):
 
     def __init__(self, env, gamma=0.95):
         super().__init__()
-        observation_size = env.observation_space.shape[0]
-        self.policy = self._network(observation_size, env.action_space.n)
+        if isinstance(env, list):
+            observation_size = env[0].observation_space.shape[0]
+            self.policy = self._network(observation_size, env[0].action_space.n)
+        else:
+            observation_size = env.observation_space.shape[0]
+            self.policy = self._network(observation_size, env.action_space.n)            
         self.value = self._network(observation_size, 1)
         self.gamma = gamma
         self.optimizer = torch.optim.Adam([

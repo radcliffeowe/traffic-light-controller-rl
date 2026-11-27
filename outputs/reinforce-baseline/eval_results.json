@@ -1,0 +1,144 @@
+{
+  "deterministic": [
+    {
+      "seed": 701,
+      "mean_reward": -0.35419661494005455,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.17189013957977295,
+        0.3685014843940735,
+        0.3107692003250122,
+        0.1488390564918518
+      ],
+      "requested_action_counts": [
+        188,
+        294,
+        221,
+        17
+      ],
+      "observed_phase_counts": [
+        344,
+        0,
+        342,
+        34
+      ]
+    },
+    {
+      "seed": 702,
+      "mean_reward": -0.3449277955526855,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.17340314388275146,
+        0.36706942319869995,
+        0.3130931556224823,
+        0.1464342325925827
+      ],
+      "requested_action_counts": [
+        187,
+        294,
+        222,
+        17
+      ],
+      "observed_phase_counts": [
+        339,
+        10,
+        337,
+        34
+      ]
+    },
+    {
+      "seed": 703,
+      "mean_reward": -0.3554222600550533,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.17163428664207458,
+        0.3651869595050812,
+        0.3136129081249237,
+        0.1495663821697235
+      ],
+      "requested_action_counts": [
+        187,
+        293,
+        223,
+        17
+      ],
+      "observed_phase_counts": [
+        343,
+        2,
+        341,
+        34
+      ]
+    }
+  ],
+  "sampled": [
+    {
+      "seed": 701,
+      "mean_reward": -0.04243473836640445,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.2748086154460907,
+        0.1542242169380188,
+        0.45782873034477234,
+        0.11313857138156891
+      ],
+      "requested_action_counts": [
+        192,
+        110,
+        319,
+        99
+      ],
+      "observed_phase_counts": [
+        264,
+        69,
+        275,
+        112
+      ]
+    },
+    {
+      "seed": 702,
+      "mean_reward": -0.04595299946325836,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.2849961221218109,
+        0.15984056890010834,
+        0.43877020478248596,
+        0.11639298498630524
+      ],
+      "requested_action_counts": [
+        208,
+        107,
+        322,
+        83
+      ],
+      "observed_phase_counts": [
+        259,
+        67,
+        291,
+        103
+      ]
+    },
+    {
+      "seed": 703,
+      "mean_reward": -0.0515287265105643,
+      "steps": 720,
+      "mean_action_probabilities": [
+        0.2633415162563324,
+        0.15961617231369019,
+        0.45800161361694336,
+        0.1190406084060669
+      ],
+      "requested_action_counts": [
+        192,
+        112,
+        330,
+        86
+      ],
+      "observed_phase_counts": [
+        269,
+        67,
+        294,
+        90
+      ]
+    }
+  ]
+}

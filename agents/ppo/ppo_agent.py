@@ -1,12 +1,10 @@
 from tqdm import tqdm
-from random import randint
 import numpy as np
 import os
 import json
 
 from agents.ppo.policy_network import PPOPolicyNetwork, get_policy_actor
 from agents.ppo.value_network import PPOValueNetwork, get_value_critic
-from test_agent import test_agent
 
 from torch import device, cuda, no_grad, from_numpy, argmax, as_tensor, float32, long, bool, randperm, save, load
 from torch.nn.utils import clip_grad_norm_
@@ -19,8 +17,8 @@ from tensordict import TensorDict
 
 
 class PPOAgent:
-    def __init__(self, env):
-        self.env = env
+    def __init__(self, envs):
+        self.envs = envs
         self.device = device("cuda:0" if cuda.is_available() else "cpu")
         self.metrics = {
             "episode": [], "train_reward": [], "episode_len": [],
@@ -35,7 +33,7 @@ class PPOAgent:
         self.trajectory_buffer = []
 
         self.checkpoint_interval = 10
-        self.eval_episodes = 3
+        self.eval_episodes = 4
         self.rand_seed_ceiling = self.num_episodes*2
         self.eval_seeds = [self.rand_seed_ceiling + 1, self.rand_seed_ceiling + 2, self.rand_seed_ceiling + 3]
         self.best_eval_reward = float("-inf")
@@ -81,9 +79,28 @@ class PPOAgent:
 
     def eval_agent(self):
         self.policy_network.eval()
-        mean_reward, _ = test_agent(self, self.env, self.eval_episodes, self.eval_seeds[0], None)
+        # mean_reward, _ = test_agent(self, self.envs, self.eval_episodes, self.eval_seeds[0], None)
+        total_rewards = []
+        for episode in tqdm(range(self.eval_episodes)):
+            env = self.envs[episode % len(self.envs)]
+            truncated=False
+            terminated=False
+            episode_rewards = []
+            state = env.reset(601)
+            while not terminated and not truncated:
+                if isinstance(state, tuple):
+                    state = state[0]  # first observation sometimes includes info dict
+                action = self.make_action(state, test=True)
+                if isinstance(action, tuple):
+                    action = action[0]
+                state, reward, terminated, truncated, info = env.step(action)
+                episode_rewards.append(reward)
+            total_rewards.append(np.mean(episode_rewards))
+
+        mean_reward = np.nanmean(total_rewards)
         self.policy_network.train()
         return mean_reward
+
 
     def make_action(self, observation, test=True):
         """
@@ -178,17 +195,18 @@ class PPOAgent:
 
     def train(self):  
         for i in tqdm(range(self.num_episodes)):
+            env = self.envs[i % len(self.envs)]
             num_steps = 0
             self.trajectory_buffer.clear()
             current_trajectory_length = 0
             episode_metrics = []
             episode_rewards = []
-            state, info = self.env.reset(0)
+            state, _ = env.reset(0)
             not_done = True
 
             while not_done:
                 action, action_log_prob = self.make_action(state, False)
-                next_state, reward, terminated, truncated, info = self.env.step(action)
+                next_state, reward, terminated, truncated, _ = env.step(action)
                 episode_rewards.append(reward)
                 if terminated or truncated:
                     not_done = False
@@ -209,7 +227,7 @@ class PPOAgent:
             self.metrics["episode"].append(i+1)
             episode_train_reward = float(np.mean(episode_rewards))
             self.metrics["train_reward"].append(episode_train_reward)
-
+            print()
             print(f"Episode {i+1}, mean_reward={episode_train_reward}")
             self.metrics["episode_len"].append(len(episode_rewards))
             for key in ["policy_loss", "value_loss", "entropy", "clip_fraction"]:

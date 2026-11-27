@@ -31,7 +31,7 @@ def run_episode(agent, env, seed, training):
     return float(np.mean(rewards)), len(rewards), losses
 
 
-def train_agent(agent, env, output_dir, num_episodes=300, eval_interval=25, seed=0):
+def train_agent(agent, envs, output_dir, num_episodes=300, eval_interval=25, seed=0):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics = {key: [] for key in (
@@ -41,12 +41,13 @@ def train_agent(agent, env, output_dir, num_episodes=300, eval_interval=25, seed
     )}
     best_eval_reward = float("-inf")
     for episode in range(1, num_episodes + 1):
+        env = envs[episode % len(envs)]
         reward, length, losses = run_episode(agent, env, seed=seed, training=True)
         for key, value in {"episode": episode, "train_reward": reward, "episode_len": length, **losses}.items():
             metrics[key].append(value)
         if episode % eval_interval == 0 or episode == num_episodes:
             eval_reward = float(np.mean([
-                run_episode(agent, env, seed=seed, training=False)[0] for seed in (601, 602, 603)
+                run_episode(agent, eval_env, seed=601, training=False)[0] for eval_env in envs
             ]))
             metrics["eval_episode"].append(episode)
             metrics["eval_reward"].append(eval_reward)
@@ -83,20 +84,46 @@ def main():
 
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)
-    env = SumoEnvironment(
+    standard_env = SumoEnvironment(
         net_file=str(NETWORK),
-        route_file=str(args.route_file.resolve()),
+        route_file="networks/two-way-single-intersection/scenario-normal.rou.xml",
         single_agent=True,
         use_gui=False,
         num_seconds=args.num_seconds,
         reward_fn=get_mean_queued,
         additional_sumo_cmd="--no-step-log true",
     )
+    heavy_env = SumoEnvironment(
+        net_file=args.net_file,
+        route_file="networks/two-way-single-intersection/scenario-heavy.rou.xml",
+        single_agent=True,
+        use_gui=False,
+        num_seconds=int(args.num_seconds),
+        reward_fn=get_mean_queued
+        )
+    imbalanced_env = SumoEnvironment(
+            net_file=args.net_file,
+            route_file="networks/two-way-single-intersection/scenario-imbalanced.rou.xml",
+            single_agent=True,
+            use_gui=False,
+            num_seconds=int(args.num_seconds),
+            reward_fn=get_mean_queued
+            )
+    varying_env = SumoEnvironment(
+            net_file=args.net_file,
+            route_file="networks/two-way-single-intersection/scenario-time-varying.rou.xml",
+            single_agent=True,
+            use_gui=False,
+            num_seconds=int(args.num_seconds),
+            reward_fn=get_mean_queued
+            )
+    envs = [standard_env, heavy_env, imbalanced_env, varying_env]
     try:
-        agent = ReinforceBaselineAgent(env)
-        train_agent(agent, env, args.output_dir, args.episodes, args.eval_interval, args.seed)
+        agent = ReinforceBaselineAgent(envs)
+        train_agent(agent, envs, args.output_dir, args.episodes, args.eval_interval, args.seed)
     finally:
-        env.close()
+        for env in envs:
+            env.close()
 
 
 if __name__ == "__main__":
