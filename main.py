@@ -11,7 +11,7 @@ def parse():
     parser.add_argument('--agent_name', required=True)
     parser.add_argument('--test_agent', action='store_true')
     parser.add_argument('--net_file', default='networks/two-way-single-intersection/single-intersection.net.xml')
-    parser.add_argument('--route_file', default=None)
+    # parser.add_argument('--route_file', default=None)
     parser.add_argument('--output_path', default=None)
     parser.add_argument('--use_gui', action='store_true')
     parser.add_argument('--num_seconds', default=3600)
@@ -72,10 +72,7 @@ def run(args):
         except Exception as e:
             raise e
 
-        if args.agent_name == "reinforce_baseline":
-            mean_reward, _ = test_agent(agent, standard_env, seed=args.seed, output_path=args.output_path)
-        else:
-            mean_reward, _ = test_agent(agent, standard_env, output_path=args.output_path)
+        mean_reward, _ = test_agent(agent, standard_env, seed=args.seed, output_path=args.output_path)
         print()
         print(f"EVAL {args.agent_name} mean reward: {mean_reward}")
         standard_env.close()

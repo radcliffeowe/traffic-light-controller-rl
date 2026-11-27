@@ -97,7 +97,7 @@ def main():
         net_file=args.net_file,
         route_file="networks/two-way-single-intersection/scenario-heavy.rou.xml",
         single_agent=True,
-        use_gui=args.use_gui,
+        use_gui=False,
         num_seconds=int(args.num_seconds),
         reward_fn=get_mean_queued
         )
@@ -105,7 +105,7 @@ def main():
             net_file=args.net_file,
             route_file="networks/two-way-single-intersection/scenario-imbalanced.rou.xml",
             single_agent=True,
-            use_gui=args.use_gui,
+            use_gui=False,
             num_seconds=int(args.num_seconds),
             reward_fn=get_mean_queued
             )
@@ -113,7 +113,7 @@ def main():
             net_file=args.net_file,
             route_file="networks/two-way-single-intersection/scenario-time-varying.rou.xml",
             single_agent=True,
-            use_gui=args.use_gui,
+            use_gui=False,
             num_seconds=int(args.num_seconds),
             reward_fn=get_mean_queued
             )
